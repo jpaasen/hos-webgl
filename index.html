@@ -10,14 +10,34 @@
 <script src="js/stats.min.js"></script>
 
 		<script type="x-shader/x-vertex" id='vertShader'>
+			varying vec2 pixelPos;
 			void main() {
-  				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  				vec4 pos = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  				gl_Position = pos;
+  				pixelPos = vec2(pos.x, pos.y);
 			}
 		</script>
 
 		<script type="x-shader/x-fragment" id='fragShader'>
+			varying vec2 pixelPos;
 			void main() {
-				gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+				gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+
+				vec2 z = pixelPos;
+
+				for (int i = 0; i < 30; ++i) {
+
+					z = pixelPos + vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y);
+
+					if (length(z) > 1.5) {
+						if (i > 20)
+							gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+						else if (i > 15)
+							gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0);
+						else 
+							gl_FragColor = vec4(0.25, 0.25, 0.25, 1.0);
+					}
+				}
 			}
 		</script>
 
@@ -26,7 +46,7 @@
 	document.body.appendChild( container );
 
 	var scene = new THREE.Scene(); 
-	var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 ); 
+	var camera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, -window.innerHeight/2, window.innerHeight/2, 1, 1000);
 	var renderer = new THREE.WebGLRenderer(); 
 	renderer.setSize( window.innerWidth, window.innerHeight ); 
 	container.appendChild( renderer.domElement );
@@ -36,7 +56,7 @@
 	stats.domElement.style.top = '0px';
 	container.appendChild( stats.domElement );
 
-	var geometry = new THREE.BoxGeometry(1,1,1);
+	var geometry = new THREE.BoxGeometry(window.innerWidth, window.innerHeight, 1);
 	var vertShader = document.getElementById('vertShader').textContent;
 	var fragShader = document.getElementById('fragShader').textContent;
 	var material = new THREE.ShaderMaterial({vertexShader: vertShader, fragmentShader: fragShader});
@@ -47,9 +67,6 @@
 
 	function render() {
 		requestAnimationFrame(render);
-
-		cube.rotation.x += 0.02;
-		cube.rotation.y += 0.02;
 
 		stats.update();	
 
