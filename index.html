@@ -1,12 +1,26 @@
 <html>
 <header>
-<title>HOS WebGL</title>
+<title>Huygens' on Speed - WebGL/three.js</title>
+<meta charset="utf-8">
 <style>canvas {width: 100%; height: 100%}</style>
 </header>
 
 <body>
 <script src="js/three.min.js"></script>
 <script src="js/stats.min.js"></script>
+
+		<script type="x-shader/x-vertex" id='vertShader'>
+			void main() {
+  				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+			}
+		</script>
+
+		<script type="x-shader/x-fragment" id='fragShader'>
+			void main() {
+				gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+			}
+		</script>
+
 <script>
 	var container = document.createElement( 'div' );
 	document.body.appendChild( container );
@@ -22,8 +36,10 @@
 	stats.domElement.style.top = '0px';
 	container.appendChild( stats.domElement );
 
-	var geometry = new THREE.CubeGeometry(1,1,1);
-	var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+	var geometry = new THREE.BoxGeometry(1,1,1);
+	var vertShader = document.getElementById('vertShader').textContent;
+	var fragShader = document.getElementById('fragShader').textContent;
+	var material = new THREE.ShaderMaterial({vertexShader: vertShader, fragmentShader: fragShader});
 	var cube = new THREE.Mesh( geometry, material );
 	scene.add( cube );
 
@@ -35,7 +51,7 @@
 		cube.rotation.x += 0.02;
 		cube.rotation.y += 0.02;
 
-		stats.update();
+		stats.update();	
 
 		renderer.render(scene, camera);
 	}
