@@ -22,6 +22,8 @@
 	varying vec2 pixelPos;
 	uniform float time;
 	uniform float observationAreaSize;
+	uniform float srcPosX;
+	uniform float srcPosY;
 
 	void main() {
 
@@ -30,7 +32,7 @@
 		float pi = 3.14;
 
 		vec3 obs = vec3(pixelPos.x*observationAreaSize, pixelPos.y*observationAreaSize, 0.0);
-		vec3 src = vec3(0.0, 0.05, 0.0);
+		vec3 src = vec3(srcPosX*observationAreaSize, srcPosY*observationAreaSize, 0.0);
 
 		float dist = length(obs - src);
 		float travelTime = dist / c;
@@ -46,36 +48,53 @@
 	}
 </script>
 
-<div id='mainFrame' onmousedown='get_coords(event)'></div>
+<div id='mainFrame' onmousemove="update_coords(event)" onmousedown="mouse_down(event)" onmouseup="mouse_up(event)">
+	
+</div>
 
 <script>
+
+	var mouseDown = false;
 
 	var observationAreaSize = 0.1;// meter 
 
 	var uniforms = {
 		time: { type: 'f', value: 0.0 }, 
-		observationAreaSize: {type: 'f', value: observationAreaSize}
+		observationAreaSize: {type: 'f', value: observationAreaSize},
+		srcPosX: { type: 'f', value: 0.0},
+		srcPosY: { type: 'f', value: 0.0}
 	};
 
-	var x;
-	var y;
-
-	function get_coords(event) {
-    	x = event.clientX;
-    	y = event.clientY;
-
+	function reset(event) {
     	uniforms.time.value = 0.0;
 	}
-	
 
-	//var container = document.createElement( 'div' );
+	function update_coords(event) {
+		if (mouseDown) {
+    		uniforms.srcPosX.value = (event.clientX / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0;
+    		uniforms.srcPosY.value = (event.clientY / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0;
+    	}
+	}
+
+	function mouse_down(event) {
+		if (event.button == 0)
+			mouseDown = true;
+	}
+
+	function mouse_up(event) {
+		if (event.button == 0)
+			mouseDown = false;
+	}
+
 	var container = document.getElementById('mainFrame');
-	//document.body.appendChild( container );
+
+	var width = window.innerHeight;
+	var height = window.innerHeight;
 
 	var scene = new THREE.Scene(); 
-	var camera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, -window.innerHeight/2, window.innerHeight/2, 1, 1000);
+	var camera = new THREE.OrthographicCamera(-width/2, width/2, -height/2, height/2, 1, 1000);
 	var renderer = new THREE.WebGLRenderer(); 
-	renderer.setSize( window.innerWidth, window.innerHeight ); 
+	renderer.setSize( width, height ); 
 	container.appendChild( renderer.domElement );
 
 	var stats = new Stats();
@@ -83,7 +102,7 @@
 	stats.domElement.style.top = '0px';
 	container.appendChild( stats.domElement );
 
-	var geometry = new THREE.BoxGeometry(window.innerWidth, window.innerHeight, 1);
+	var geometry = new THREE.BoxGeometry(width, height, 1);
 	var vertShader = document.getElementById('vertShader').textContent;
 	var fragShader = document.getElementById('fragShader').textContent;
 	var material = new THREE.ShaderMaterial({uniforms: uniforms, vertexShader: vertShader, fragmentShader: fragShader});
