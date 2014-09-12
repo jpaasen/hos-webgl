@@ -23,6 +23,8 @@
 	uniform float time;
 	uniform float observationAreaSize;
 	uniform int nSrc;
+	uniform float minDist;
+	uniform float maxDist;
 
 	uniform vec3 srcPos[100];
 	uniform float srcTimestamps[100];
@@ -33,29 +35,47 @@
 		float f = 0.5e6;
 		float pi = 3.14;
 
-		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-
+		float sinValue = 0.0;
 		for (int i = 0; i < 100; ++i) {
 
 			if (i < nSrc) {
+
 				vec3 obs = vec3(pixelPos.x*observationAreaSize, pixelPos.y*observationAreaSize, 0.0);
-				
 				vec3 src = srcPos[i] * observationAreaSize;
 		
 				float dist = length(obs - src);
 				float travelTime = dist / c;
 		
 				if ((travelTime + srcTimestamps[i]) < time) {
-					float sinValue = sin(2.0 * pi * f * travelTime);// / dist;
-					sinValue = sinValue/2.0 + 0.5;
-					gl_FragColor += vec4(sinValue, sinValue, sinValue, 1.0);
-				} else {
-					gl_FragColor += vec4(0.0, 0.0, 0.0, 1.0);
+
+					if (dist < minDist) // Prevent high values close the src
+						dist = 1.0;
+
+					sinValue += sin(2.0 * pi * f * travelTime) / dist;
 				}
 			}
 		}
-		if (nSrc > 0)
-			gl_FragColor /= float(nSrc);
+
+		if (nSrc > 0) {
+			sinValue /= float(nSrc);
+			if (sinValue > 0.0) {
+				sinValue = sinValue/2.0 + 0.5;
+				// Scale so that minValue becomes black
+				float minValue = 1.0 / maxDist;
+				float maxValue = 1.0 / minDist;
+				sinValue = ((maxValue / (maxValue - minValue)) * sinValue) - (minValue / (maxValue - minValue));
+
+				// Debug values
+				/*if (sinValue > 1.0)
+					sinValue = 1.0;
+				else if (sinValue < 0.0)
+					sinValue = 0.5;
+				else 
+					sinValue = 0.0;*/
+			}
+		}
+
+		gl_FragColor = vec4(sinValue, sinValue, sinValue, 1.0);
 	}
 </script>
 
@@ -77,12 +97,16 @@
 	var mouseDown = false;
 	var mouseMoved = false;
 
-	var observationAreaSize = 0.1;// meter 
+	var observationAreaSize = 0.1; // in meters 
+	var minDist = 1e-5;
+	var maxDist = 1.0 / Math.sqrt( Math.pow(observationAreaSize, 2.0) * 2.0 );
 
 	var uniforms = {
 		time: { type: 'f', value: 0.0 }, 
 		observationAreaSize: { type: 'f', value: observationAreaSize },
 		nSrc: { type: 'i', value: 0 },
+		minDist: { type: 'f', value: minDist},
+		maxDist: { type: 'f', value: maxDist},
 		srcPos: { type: 'v3v', value: srcPos },
 		srcTimestamps: {type: 'fv1', value: srcTimestamps }
 	};
