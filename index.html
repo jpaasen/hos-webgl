@@ -22,16 +22,15 @@
 	varying vec2 pixelPos;
 	uniform float time;
 	uniform float observationAreaSize;
-	uniform float srcPosX;
-	uniform float srcPosY;
 	uniform int nSrc;
 
-	uniform vec3 coordArray[100];
+	uniform vec3 srcPos[100];
+	uniform float srcTimestamps[100];
 
 	void main() {
 
 		float c = 1540.0;
-		float fs = 1e6;
+		float f = 0.5e6;
 		float pi = 3.14;
 
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -41,13 +40,13 @@
 			if (i < nSrc) {
 				vec3 obs = vec3(pixelPos.x*observationAreaSize, pixelPos.y*observationAreaSize, 0.0);
 				
-				vec3 src = coordArray[i] * observationAreaSize;
+				vec3 src = srcPos[i] * observationAreaSize;
 		
 				float dist = length(obs - src);
 				float travelTime = dist / c;
 		
-				if (travelTime < time) {
-					float sinValue = sin(2.0 * pi * fs * travelTime);// / dist;
+				if ((travelTime + srcTimestamps[i]) < time) {
+					float sinValue = sin(2.0 * pi * f * travelTime);// / dist;
 					sinValue = sinValue/2.0 + 0.5;
 					gl_FragColor += vec4(sinValue, sinValue, sinValue, 1.0);
 				} else {
@@ -66,10 +65,12 @@
 <script>
 
 	var nSrc = 0;
-	var coords = [];
+	var srcPos = [];
+	var srcTimestamps = [];
 
 	for (i = 0; i < 100; ++i) {
-		coords[coords.length] = new THREE.Vector3(0,0,0); 
+		srcPos[srcPos.length] = new THREE.Vector3(0,0,0);
+		srcTimestamps[srcTimestamps.length] = 0.0;
 	}
 
 	var mouseDown = false;
@@ -79,10 +80,9 @@
 	var uniforms = {
 		time: { type: 'f', value: 0.0 }, 
 		observationAreaSize: { type: 'f', value: observationAreaSize },
-		srcPosX: { type: 'f', value: 0.0 },
-		srcPosY: { type: 'f', value: 0.0 },
 		nSrc: { type: 'i', value: 0 },
-		coordArray: { type: 'v3v', value: coords }
+		srcPos: { type: 'v3v', value: srcPos },
+		srcTimestamps: {type: 'fv1', value: srcTimestamps }
 	};
 
 	var container = document.getElementById('mainFrame');
@@ -127,14 +127,15 @@
 			var vec = new THREE.Vector3(
 				(event.clientX / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
 				(event.clientY / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
-			coords[nSrc] = vec;
-	
+			srcPos[nSrc] = vec;
+			srcTimestamps[nSrc] = uniforms.time.value;
+
 			nSrc++;
 	
 			console.log(vec);
 	
 			uniforms.nSrc.value = nSrc;
-			uniforms.coordArray.value = coords;
+			uniforms.srcPos.value = srcPos; // Not needed? Reference?
 		}
 	}
 
@@ -153,7 +154,7 @@
 
 		stats.update();
 
-		uniforms.time.value += 1e-6;
+		uniforms.time.value += 5e-7;
 
 		renderer.render(scene, camera);
 	}
