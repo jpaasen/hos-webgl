@@ -54,11 +54,12 @@
 				}
 			}
 		}
-		gl_FragColor /= float(nSrc);
+		if (nSrc > 0)
+			gl_FragColor /= float(nSrc);
 	}
 </script>
 
-<div id='mainFrame' onmousemove="update_coords(event)" onmousedown="mouse_down(event)" onmouseup="mouse_up(event)" onclick="mouse_clicked(event)">
+<div id='mainFrame' onmousemove="mouse_move(event)" onmousedown="mouse_down(event)" onmouseup="mouse_up(event)">
 	
 </div>
 
@@ -74,6 +75,7 @@
 	}
 
 	var mouseDown = false;
+	var mouseMoved = false;
 
 	var observationAreaSize = 0.1;// meter 
 
@@ -121,12 +123,11 @@
     	}
 	}
 
-	function mouse_clicked(event) {
-
+	function addSrc(x, y) {
 		if (nSrc <= 100) {
 			var vec = new THREE.Vector3(
-				(event.clientX / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
-				(event.clientY / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
+				(x / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
+				(y / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
 			srcPos[nSrc] = vec;
 			srcTimestamps[nSrc] = uniforms.time.value;
 
@@ -136,7 +137,7 @@
 	
 			uniforms.nSrc.value = nSrc;
 			uniforms.srcPos.value = srcPos; // Not needed? Reference?
-		}
+		}		
 	}
 
 	function mouse_down(event) {
@@ -146,7 +147,20 @@
 
 	function mouse_up(event) {
 		if (event.button == 0)
+			if (mouseMoved) {
+				mouseMoved = false;
+			} else {
+				addSrc(event.clientX, event.clientY);
+			}
 			mouseDown = false;
+	}
+
+	function mouse_move(event) {
+		if (event.button == 0)
+			if (mouseDown) {
+				addSrc(event.clientX, event.clientY);
+				mouseMoved = true;
+			}
 	}
 
 	function render() {
