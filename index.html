@@ -24,7 +24,6 @@
 	uniform float observationAreaSize;
 	uniform int nSrc;
 	uniform float minDist;
-	uniform float maxDist;
 
 	uniform vec3 srcPos[100];
 	uniform float srcTimestamps[100];
@@ -35,7 +34,12 @@
 		float f = 0.5e6;
 		float pi = 3.14;
 
-		float sinValue = 0.0;
+		float dynamicRange = -100.0; // dB
+
+		float totalRealPart = 0.0;
+		float totalImagPart = 0.0;
+
+		// Calc field value
 		for (int i = 0; i < 100; ++i) {
 
 			if (i < nSrc) {
@@ -49,33 +53,36 @@
 				if ((travelTime + srcTimestamps[i]) < time) {
 
 					if (dist < minDist) // Prevent high values close the src
-						dist = 1.0;
+						dist = minDist;
 
-					sinValue += sin(2.0 * pi * f * travelTime) / dist;
+					float omega = 2.0 * pi * f * travelTime;
+					totalRealPart += cos(omega) / dist;
+					totalImagPart += sin(omega) / dist;
 				}
 			}
 		}
 
-		if (nSrc > 0) {
-			sinValue /= float(nSrc);
-			if (sinValue > 0.0) {
-				sinValue = sinValue/2.0 + 0.5;
-				// Scale so that minValue becomes black
-				float minValue = 1.0 / maxDist;
-				float maxValue = 1.0 / minDist;
-				sinValue = ((maxValue / (maxValue - minValue)) * sinValue) - (minValue / (maxValue - minValue));
+		float outValue = 0.0;
 
-				// Debug values
-				/*if (sinValue > 1.0)
-					sinValue = 1.0;
-				else if (sinValue < 0.0)
-					sinValue = 0.5;
-				else 
-					sinValue = 0.0;*/
+		// Normalize
+		if (nSrc > 0) {
+
+			outValue = sqrt(totalRealPart*totalRealPart + totalImagPart*totalImagPart);
+
+			float maxValue = 1.0 / minDist;
+
+			if (abs(outValue) != 0.0) {
+				outValue /= (float(nSrc) * maxValue * sqrt(2.0));
+
+				outValue = 20.0 * log(outValue) / log(10.0);
+
+				if (outValue < dynamicRange)
+					outValue = dynamicRange;
+				outValue = (outValue - dynamicRange) / (-dynamicRange);
 			}
 		}
 
-		gl_FragColor = vec4(sinValue, sinValue, sinValue, 1.0);
+		gl_FragColor = vec4(outValue, outValue, outValue, 1.0);
 	}
 </script>
 
@@ -98,15 +105,13 @@
 	var mouseMoved = false;
 
 	var observationAreaSize = 0.1; // in meters 
-	var minDist = 1e-5;
-	var maxDist = 1.0 / Math.sqrt( Math.pow(observationAreaSize, 2.0) * 2.0 );
+	var minDist = 1e-4;
 
 	var uniforms = {
 		time: { type: 'f', value: 0.0 }, 
 		observationAreaSize: { type: 'f', value: observationAreaSize },
 		nSrc: { type: 'i', value: 0 },
 		minDist: { type: 'f', value: minDist},
-		maxDist: { type: 'f', value: maxDist},
 		srcPos: { type: 'v3v', value: srcPos },
 		srcTimestamps: {type: 'fv1', value: srcTimestamps }
 	};
