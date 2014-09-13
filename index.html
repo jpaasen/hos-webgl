@@ -21,26 +21,26 @@
 <script type="x-shader/x-fragment" id='fragShader'>
 	varying vec2 pixelPos;
 	uniform float time;
+	uniform float f;
+	uniform float dynamicRange;
 	uniform float observationAreaSize;
 	uniform int nSrc;
 	uniform float minDist;
 
-	uniform vec3 srcPos[100];
-	uniform float srcTimestamps[100];
+	uniform vec3 srcPos[250];
+	uniform float srcTimestamps[250];
+	uniform float steeringDelays[250];
 
 	void main() {
 
 		float c = 1540.0;
-		float f = 0.5e6;
 		float pi = 3.14;
-
-		float dynamicRange = -100.0; // dB
 
 		float totalRealPart = 0.0;
 		float totalImagPart = 0.0;
 
 		// Calc field value
-		for (int i = 0; i < 100; ++i) {
+		for (int i = 0; i < 250; ++i) {
 
 			if (i < nSrc) {
 
@@ -50,12 +50,13 @@
 				float dist = length(obs - src);
 				float travelTime = dist / c;
 		
-				if ((travelTime + srcTimestamps[i]) < time) {
+				float srcFlightTime = time - (srcTimestamps[i] + steeringDelays[i]);
+				if (srcFlightTime > travelTime) {
 
 					if (dist < minDist) // Prevent high values close the src
 						dist = minDist;
 
-					float omega = 2.0 * pi * f * travelTime;
+					float omega = 2.0 * pi * f * (travelTime - srcFlightTime);
 					totalRealPart += cos(omega) / dist;
 					totalImagPart += sin(omega) / dist;
 				}
@@ -64,7 +65,7 @@
 
 		float outValue = 0.0;
 
-		// Normalize
+		// Normalize and display
 		if (nSrc > 0) {
 
 			outValue = sqrt(totalRealPart*totalRealPart + totalImagPart*totalImagPart);
@@ -92,28 +93,40 @@
 
 <script>
 
+	var nSrcMax = 250;
+
 	var nSrc = 0;
 	var srcPos = [];
 	var srcTimestamps = [];
+	var steeringDelays = [];
 
-	for (i = 0; i < 100; ++i) {
+	for (i = 0; i < nSrcMax; ++i) {
 		srcPos[srcPos.length] = new THREE.Vector3(0,0,0);
 		srcTimestamps[srcTimestamps.length] = 0.0;
+		steeringDelays[steeringDelays.length] = 0.0;
 	}
 
-	var mouseDown = false;
+	var leftMouseDown = false;
+	var rightMouseDown = false;
 	var mouseMoved = false;
 
 	var observationAreaSize = 0.1; // in meters 
 	var minDist = 1e-4;
 
+	var f = 0.5e6;
+	var dynamicRange = -100.0; // dB
+	var c = 1540.0; // m/s
+
 	var uniforms = {
-		time: { type: 'f', value: 0.0 }, 
+		time: { type: 'f', value: 0.0 },
+		f: { type: 'f', value: f },
+		dynamicRange: {type: 'f', value: dynamicRange }, 
 		observationAreaSize: { type: 'f', value: observationAreaSize },
 		nSrc: { type: 'i', value: 0 },
 		minDist: { type: 'f', value: minDist},
 		srcPos: { type: 'v3v', value: srcPos },
-		srcTimestamps: {type: 'fv1', value: srcTimestamps }
+		srcTimestamps: {type: 'fv1', value: srcTimestamps },
+		steeringDelays: {type: 'fv1', value: steeringDelays }
 	};
 
 	var container = document.getElementById('mainFrame');
@@ -141,19 +154,38 @@
 
 	camera.position.z = 5;
 
+	function updateSteering(x, y) {
+		var focus = new THREE.Vector3(
+			(x / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
+			(y / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
+
+		// find src with max time-of-fligh
+		var maxTimeOfFlight = 0.0;
+		for (i = 0; i < nSrc; ++i) {
+			var pos = new THREE.Vector3();
+			pos.subVectors(focus, srcPos[i]);
+			var lengthToFocus = pos.length() * observationAreaSize;
+			var timeOfFlight = lengthToFocus / c;
+			if (timeOfFlight > maxTimeOfFlight) {
+				maxTimeOfFlight = timeOfFlight;
+			}
+			steeringDelays[i] = timeOfFlight;
+		}
+
+		// calc final delays
+		for (i = 0; i < nSrc; ++i) {
+			steeringDelays[i] = maxTimeOfFlight - steeringDelays[i];
+		}
+
+		uniforms.steeringDelays.value = steeringDelays;
+	}
+
 	function reset(event) {
     	uniforms.time.value = 0.0;
 	}
 
-	function update_coords(event) {
-		if (mouseDown) {
-    		uniforms.srcPosX.value = (event.clientX / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0;
-    		uniforms.srcPosY.value = (event.clientY / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0;
-    	}
-	}
-
 	function addSrc(x, y) {
-		if (nSrc <= 100) {
+		if (nSrc < nSrcMax) {
 			var vec = new THREE.Vector3(
 				(x / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
 				(y / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
@@ -162,7 +194,7 @@
 
 			nSrc++;
 	
-			console.log(vec);
+			//console.log(vec);
 	
 			uniforms.nSrc.value = nSrc;
 			uniforms.srcPos.value = srcPos; // Not needed? Reference?
@@ -170,26 +202,40 @@
 	}
 
 	function mouse_down(event) {
-		if (event.button == 0)
-			mouseDown = true;
+		if (event.button == 0) {
+			leftMouseDown = true;
+		} else if (event.button == 2) {
+			rightMouseDown = true;
+		} else {
+
+		}
 	}
 
 	function mouse_up(event) {
-		if (event.button == 0)
+		if (leftMouseDown) {
 			if (mouseMoved) {
 				mouseMoved = false;
 			} else {
 				addSrc(event.clientX, event.clientY);
 			}
-			mouseDown = false;
+			leftMouseDown = false;
+
+		} else if (rightMouseDown) {
+			rightMouseDown = false;
+		} else {
+
+		}
 	}
 
 	function mouse_move(event) {
-		if (event.button == 0)
-			if (mouseDown) {
-				addSrc(event.clientX, event.clientY);
-				mouseMoved = true;
-			}
+		if (leftMouseDown) {
+			addSrc(event.clientX, event.clientY);
+			mouseMoved = true;
+		} else if (rightMouseDown) {
+			updateSteering(event.clientX, event.clientY);
+		} else {
+
+		}
 	}
 
 	function render() {
