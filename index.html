@@ -110,6 +110,9 @@
 	var rightMouseDown = false;
 	var mouseMoved = false;
 
+	var linearArrayMode = true;
+	var fromPoint;
+
 	var observationAreaSize = 0.1; // in meters 
 	var minDist = 1e-4;
 
@@ -154,10 +157,47 @@
 
 	camera.position.z = 5;
 
-	function updateSteering(x, y) {
-		var focus = new THREE.Vector3(
+	function convertCoords(x, y) {
+		return new THREE.Vector3(
 			(x / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
 			(y / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
+	}
+
+	function addLinearArray(pointFrom, pointTo, lambdaSpacing) {
+
+		var lambda = c / f;
+		var tmpVec = new THREE.Vector3();
+		tmpVec.subVectors(pointTo, pointFrom);
+		var arraySize = tmpVec.length();
+		var pitch = lambda * lambdaSpacing;
+		var nPoints = arraySize / pitch;
+		var pitchVec = tmpVec.setLength(pitch);
+
+		//var currentPoint = pointFrom;
+		var arrayTimeStamp = uniforms.time.value;
+
+		if (nPoints < nSrcMax) {
+
+			for (i = 0.0; i < nPoints; ++i) {
+				
+				srcPos[nSrc] = new THREE.Vector3(pointFrom.x + pitchVec.x * i, pointFrom.y + pitchVec.y * i, 0.0);
+				srcTimestamps[nSrc] = arrayTimeStamp;
+	
+				console.log(srcPos[nSrc]);
+
+				nSrc++;
+	
+				//currentPoint = currentPoint.add(pitchVec);
+			}
+	
+			uniforms.nSrc.value = nSrc;
+			uniforms.srcPos.value = srcPos;
+			uniforms.srcTimestamps = srcTimestamps;
+		}
+	}
+
+	function updateSteering(x, y) {
+		var focus = convertCoords(x, y);
 
 		// find src with max time-of-fligh
 		var maxTimeOfFlight = 0.0;
@@ -184,25 +224,26 @@
     	uniforms.time.value = 0.0;
 	}
 
-	function addSrc(x, y) {
+	function addSrc(point) {
 		if (nSrc < nSrcMax) {
-			var vec = new THREE.Vector3(
-				(x / document.getElementById('mainFrame').offsetHeight - 0.5) *  2.0, 
-				(y / document.getElementById('mainFrame').offsetHeight - 0.5) * -2.0, 0);
-			srcPos[nSrc] = vec;
+			srcPos[nSrc] = point;
 			srcTimestamps[nSrc] = uniforms.time.value;
 
 			nSrc++;
 	
-			//console.log(vec);
+			console.log(point);
 	
 			uniforms.nSrc.value = nSrc;
-			uniforms.srcPos.value = srcPos; // Not needed? Reference?
+			uniforms.srcPos.value = srcPos;
+			uniforms.srcTimestamps = srcTimestamps;
 		}		
 	}
 
 	function mouse_down(event) {
 		if (event.button == 0) {
+			if (linearArrayMode) {
+				fromPoint = convertCoords(event.clientX, event.clientY);
+			}
 			leftMouseDown = true;
 		} else if (event.button == 2) {
 			rightMouseDown = true;
@@ -213,11 +254,14 @@
 
 	function mouse_up(event) {
 		if (leftMouseDown) {
-			if (mouseMoved) {
-				mouseMoved = false;
+			if (linearArrayMode && mouseMoved) {
+				addLinearArray(fromPoint, convertCoords(event.clientX, event.clientY), 5.0);
 			} else {
-				addSrc(event.clientX, event.clientY);
+				if (!mouseMoved) {
+					addSrc(convertCoords(event.clientX, event.clientY));
+				}
 			}
+			mouseMoved = false;
 			leftMouseDown = false;
 
 		} else if (rightMouseDown) {
@@ -228,14 +272,14 @@
 	}
 
 	function mouse_move(event) {
-		if (leftMouseDown) {
-			addSrc(event.clientX, event.clientY);
-			mouseMoved = true;
+		if (leftMouseDown && !linearArrayMode) {
+			addSrc(convertCoords(event.clientX, event.clientY));
 		} else if (rightMouseDown) {
 			updateSteering(event.clientX, event.clientY);
 		} else {
 
 		}
+		mouseMoved = true;
 	}
 
 	function render() {
