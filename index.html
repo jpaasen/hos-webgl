@@ -2,10 +2,19 @@
 <header>
 <title>Huygens' on Speed - WebGL/three.js</title>
 <meta charset="utf-8">
-<style>canvas {width: 100%; height: 100%}</style>
+<style type="text/css">
+	canvas {
+		width: 100%; 
+		height: 100%;
+	}
+	
+	#mainFrame {
+		
+	}
+</style>
 </header>
 
-<body>
+<body bgcolor=black oncontextmenu="return false;">
 <script src="js/three.min.js"></script>
 <script src="js/stats.min.js"></script>
 
@@ -88,8 +97,8 @@
 </script>
 
 <div id='mainFrame' onmousemove="mouse_move(event)" onmousedown="mouse_down(event)" onmouseup="mouse_up(event)">
-	
-</div>
+
+</div>	
 
 <script>
 
@@ -134,8 +143,8 @@
 
 	var container = document.getElementById('mainFrame');
 
-	var width = window.innerHeight / 2;
-	var height = window.innerHeight / 2;
+	var width = window.innerHeight;
+	var height = window.innerHeight;
 
 	var scene = new THREE.Scene(); 
 	var camera = new THREE.OrthographicCamera(-width/2, width/2, -height/2, height/2, 1, 1000);
