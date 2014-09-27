@@ -109,11 +109,7 @@
 	var srcTimestamps = [];
 	var steeringDelays = [];
 
-	for (i = 0; i < nSrcMax; ++i) {
-		srcPos[srcPos.length] = new THREE.Vector3(0,0,0);
-		srcTimestamps[srcTimestamps.length] = 0.0;
-		steeringDelays[steeringDelays.length] = 0.0;
-	}
+	init();
 
 	var leftMouseDown = false;
 	var rightMouseDown = false;
@@ -121,6 +117,7 @@
 
 	var linearArrayMode = true;
 	var fromPoint;
+	var arrayPitch = 1;
 
 	var observationAreaSize = 0.1; // in meters 
 	var minDist = 1e-4;
@@ -128,6 +125,9 @@
 	var f = 0.5e6;
 	var dynamicRange = -100.0; // dB
 	var c = 1540.0; // m/s
+	var timeStep = 5e-7;
+
+	var pause = false;
 
 	var uniforms = {
 		time: { type: 'f', value: 0.0 },
@@ -141,10 +141,15 @@
 		steeringDelays: {type: 'fv1', value: steeringDelays }
 	};
 
+	// add key pressed callback
+	document.onkeypress = function(key) { 
+		key_pressed(key); 
+	}
+
 	var container = document.getElementById('mainFrame');
 
-	var width = window.innerHeight;
-	var height = window.innerHeight;
+	var width = window.innerHeight / 2;
+	var height = window.innerHeight / 2;
 
 	var scene = new THREE.Scene(); 
 	var camera = new THREE.OrthographicCamera(-width/2, width/2, -height/2, height/2, 1, 1000);
@@ -165,6 +170,19 @@
 	scene.add( cube );
 
 	camera.position.z = 5;
+
+	function init() {
+		nSrc = 0;
+		srcPos = [];
+		srcTimestamps = [];
+		steeringDelays = [];
+
+		for (i = 0; i < nSrcMax; ++i) {
+			srcPos[srcPos.length] = new THREE.Vector3(0,0,0);
+			srcTimestamps[srcTimestamps.length] = 0.0;
+			steeringDelays[steeringDelays.length] = 0.0;
+		}
+	}
 
 	function convertCoords(x, y) {
 		return new THREE.Vector3(
@@ -201,7 +219,7 @@
 	
 			uniforms.nSrc.value = nSrc;
 			uniforms.srcPos.value = srcPos;
-			uniforms.srcTimestamps = srcTimestamps;
+			uniforms.srcTimestamps.value = srcTimestamps;
 		}
 	}
 
@@ -240,11 +258,11 @@
 
 			nSrc++;
 	
-			console.log(point);
+			//console.log(point);
 	
 			uniforms.nSrc.value = nSrc;
 			uniforms.srcPos.value = srcPos;
-			uniforms.srcTimestamps = srcTimestamps;
+			uniforms.srcTimestamps.value = srcTimestamps;
 		}		
 	}
 
@@ -264,7 +282,7 @@
 	function mouse_up(event) {
 		if (leftMouseDown) {
 			if (linearArrayMode && mouseMoved) {
-				addLinearArray(fromPoint, convertCoords(event.clientX, event.clientY), 5.0);
+				addLinearArray(fromPoint, convertCoords(event.clientX, event.clientY), arrayPitch);
 			} else {
 				if (!mouseMoved) {
 					addSrc(convertCoords(event.clientX, event.clientY));
@@ -291,15 +309,47 @@
 		mouseMoved = true;
 	}
 
+	function key_pressed(key) {
+		if (key.key == "m") {
+			linearArrayMode = !linearArrayMode;
+		} else if (key.key == "p") {
+			pause = !pause;
+		} else if (key.key == "t") {
+			uniforms.time.value -= timeStep;
+		} else if (key.key == "T") {
+			uniforms.time.value += timeStep;
+		} else if (key.key == "f") {
+			if (f > 1e5) {
+				f -= 1e5;
+			}
+			uniforms.f.value = f;
+		} else if (key.key == "F") {
+			f += 1e5;
+			uniforms.f.value = f;
+		} else if (key.key == "c") {
+			init();
+			uniforms.nSrc.value = nSrc;
+			uniforms.srcPos.value = srcPos;
+			uniforms.srcTimestamps.value = srcTimestamps;
+		} else if (key.key == "d") {
+			uniforms.dynamicRange.value += 5.0;
+		} else if (key.key == "D") {
+			uniforms.dynamicRange.value -= 5.0;
+		}
+	}
+
 	function render() {
 		requestAnimationFrame(render);
 
 		stats.update();
 
-		uniforms.time.value += 5e-7;
+		if (!pause) {
+			uniforms.time.value += timeStep;
+		}
 
 		renderer.render(scene, camera);
 	}
+
 	render();
 </script>
 
