@@ -1,3 +1,6 @@
 [submodule "js/KeyboardJS"]
 	path = js/KeyboardJS
 	url = https://github.com/RobertWHurst/KeyboardJS.git
+[submodule "reveal.js"]
+	path = reveal.js
+	url = https://github.com/jpaasen/reveal.js.git
